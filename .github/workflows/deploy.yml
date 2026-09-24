@@ -1,0 +1,51 @@
+name: assignment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'static-html-directory/**'
+      - 'web/**'
+
+jobs:
+  local-deployment:
+    # Forces GitHub to execute these commands directly on your local computer's terminal
+    runs-on: self-hosted
+
+    steps:
+      # 1. Fetch complete git history to allow deep git diff comparison
+      - name: Checkout Repo with History
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Evaluate changes and deploy the local Web Stack
+      - name: Local Web Stack (Nginx)
+        run: |
+          echo "Scanning for changes in 'web/' directory..."
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        
+          if echo "$CHANGED_FILES" | grep -q "^web/"; then
+              echo "🚀 Changes found! Re-deploying local Web Stack..."
+              cd web
+              docker compose down
+              docker compose up -d --build
+          else
+              echo "⏭️ No changes in 'web/'. Keeping current local Web container running."
+          fi
+
+      # 3. Evaluate changes and deploy the local DB Stack
+      - name: Local DB Stack (Postgres + Adminer)
+        run: |
+          echo "Scanning for changes in 'static-html-directory/' directory..."
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        
+          if echo "$CHANGED_FILES" | grep -q "^static-html-directory/"; then
+              echo "🚀 Changes found! Re-deploying local Database Stack..."
+              cd static-html-directory
+              docker compose down
+              docker compose up -d --build
+          else
+              echo "⏭️ No changes in 'db/'. Keeping current local DB container running."
+          fi
